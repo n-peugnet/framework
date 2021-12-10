@@ -115,7 +115,7 @@ class Extension implements Arrayable
         $this->assignId();
     }
 
-    protected static function nameToId($name)
+    public static function nameToId($name)
     {
         [$vendor, $package] = explode('/', $name);
         $package = str_replace(['flarum-ext-', 'flarum-'], '', $package);
