@@ -163,7 +163,7 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
           className="Button"
           onclick={this.terminateAllOtherSessions.bind(this)}
           loading={this.loading === 'terminate_sessions'}
-          disabled={this.loading === 'global_logout' || !this.tokens?.find((token) => token.isSessionToken() && !token.isCurrent())}
+          disabled={this.loading === 'global_logout' || !this.tokens?.some((token) => token.isSessionToken() && !token.isCurrent())}
         >
           {app.translator.trans('core.forum.security.terminate_all_other_sessions')}
         </Button>
