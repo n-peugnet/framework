@@ -17,7 +17,7 @@ import NewAccessTokenModal from './NewAccessTokenModal';
  */
 export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPageAttrs> extends UserPage<CustomAttrs> {
   protected tokens: AccessToken[] | null = null;
-  protected loading: boolean = false;
+  protected loading: null | 'terminate_sessions' | 'global_logout' = null;
 
   oninit(vnode: Mithril.Vnode<CustomAttrs, this>) {
     super.oninit(vnode);
@@ -56,11 +56,29 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
 
       items.add(
         section,
-        <FieldSet className={`Security-${section}`} label={app.translator.trans(`core.forum.security.${sectionLocale}_heading`)}>
+        <FieldSet className={`SecurityPage-${section}`} label={app.translator.trans(`core.forum.security.${sectionLocale}_heading`)}>
           {this[sectionName]().toArray()}
         </FieldSet>
       );
     });
+
+    if (this.user!.id() === app.session.user!.id()) {
+      items.add(
+        'globalLogout',
+        <FieldSet className="SecurityPage-globalLogout" label={app.translator.trans('core.forum.security.global_logout.heading')}>
+          <span className="helpText">{app.translator.trans('core.forum.security.global_logout.help_text')}</span>
+          <Button
+            className="Button"
+            icon="fas fa-sign-out-alt"
+            onclick={this.globalLogout.bind(this)}
+            loading={this.loading === 'global_logout'}
+            disabled={this.loading === 'terminate_sessions'}
+          >
+            {app.translator.trans('core.forum.security.global_logout.log_out_button')}
+          </Button>
+        </FieldSet>
+      );
+    }
 
     return items;
   }
@@ -144,8 +162,8 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
         <Button
           className="Button"
           onclick={this.terminateAllOtherSessions.bind(this)}
-          loading={this.loading}
-          disabled={!this.tokens?.find((token) => token.isSessionToken() && !token.isCurrent())}
+          loading={this.loading === 'terminate_sessions'}
+          disabled={this.loading === 'global_logout' || !this.tokens?.find((token) => token.isSessionToken() && !token.isCurrent())}
         >
           {app.translator.trans('core.forum.security.terminate_all_other_sessions')}
         </Button>
@@ -169,7 +187,7 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
   terminateAllOtherSessions() {
     if (!confirm(extractText(app.translator.trans('core.forum.security.terminate_all_other_sessions_confirmation')))) return;
 
-    this.loading = true;
+    this.loading = 'terminate_sessions';
 
     return app
       .request({
@@ -177,10 +195,21 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
         url: app.forum.attribute('apiUrl') + '/sessions',
       })
       .then(() => {
-        this.loading = false;
+        this.loading = null;
         this.tokens = this.tokens!.filter((token) => !token.isSessionToken() || token.isCurrent());
         app.alerts.show({ type: 'success' }, app.translator.trans('core.forum.security.session_terminated', { count: 2 }));
         m.redraw();
       });
+  }
+
+  globalLogout() {
+    this.loading = 'global_logout';
+
+    return app
+      .request({
+        method: 'POST',
+        url: app.forum.attribute<string>('baseUrl') + '/global-logout',
+      })
+      .then(() => window.location.reload());
   }
 }
