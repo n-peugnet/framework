@@ -24,13 +24,10 @@ export default class SettingDropdown extends SelectDropdown {
       children: this.attrs.options.map(({ value, label }) => {
         const active = app.data.settings[this.attrs.setting] === value;
 
-        return Button.component(
-          {
-            icon: active ? 'fas fa-check' : true,
-            onclick: saveSettings.bind(this, { [this.attrs.setting]: value }),
-            active,
-          },
-          label
+        return (
+          <Button icon={active ? 'fas fa-check' : true} onclick={saveSettings.bind(this, { [this.attrs.setting]: value })} active={active}>
+            {label}
+          </Button>
         );
       }),
     });

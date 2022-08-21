@@ -22,18 +22,20 @@ export default class SplitDropdown extends Dropdown {
     const buttonAttrs = Object.assign({}, firstChild.attrs);
     buttonAttrs.className = (buttonAttrs.className || '') + ' SplitDropdown-button Button ' + this.attrs.buttonClassName;
 
-    return [
-      Button.component(buttonAttrs, firstChild.children),
-      <button
-        className={'Dropdown-toggle Button Button--icon ' + this.attrs.buttonClassName}
-        aria-haspopup="menu"
-        aria-label={this.attrs.accessibleToggleLabel}
-        data-toggle="dropdown"
-      >
-        {icon(this.attrs.icon, { className: 'Button-icon' })}
-        {icon('fas fa-caret-down', { className: 'Button-caret' })}
-      </button>,
-    ];
+    return (
+      <>
+        <Button {...buttonAttrs}>{firstChild.children}</Button>
+        <button
+          className={'Dropdown-toggle Button Button--icon ' + this.attrs.buttonClassName}
+          aria-haspopup="menu"
+          aria-label={this.attrs.accessibleToggleLabel}
+          data-toggle="dropdown"
+        >
+          {icon(this.attrs.icon, { className: 'Button-icon' })}
+          {icon('fas fa-caret-down', { className: 'Button-caret' })}
+        </button>
+      </>
+    );
   }
 
   /**

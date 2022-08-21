@@ -38,13 +38,9 @@ export default class SessionDropdown extends Dropdown {
 
     items.add(
       'logOut',
-      Button.component(
-        {
-          icon: 'fas fa-sign-out-alt',
-          onclick: app.session.logout.bind(app.session),
-        },
-        app.translator.trans('core.admin.header.log_out_button')
-      ),
+      <Button icon="fas fa-sign-out-alt" onclick={app.session.logout.bind(app.session)}>
+        {app.translator.trans('core.admin.header.log_out_button')}
+      </Button>,
       -100
     );
 
