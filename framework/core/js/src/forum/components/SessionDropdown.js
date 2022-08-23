@@ -65,18 +65,6 @@ export default class SessionDropdown extends Dropdown {
       50
     );
 
-    items.add(
-      'security',
-      LinkButton.component(
-        {
-          icon: 'fas fa-shield-alt',
-          href: app.route('user.security', { username: user.slug() }),
-        },
-        app.translator.trans('core.forum.header.security_button')
-      ),
-      25
-    );
-
     if (app.forum.attribute('adminUrl')) {
       items.add(
         'administration',
