@@ -10,7 +10,7 @@ import ItemList from '../../common/utils/ItemList';
 import DataSegment from '../../common/components/DataSegment';
 import extractText from '../../common/utils/extractText';
 import classList from '../../common/utils/classList';
-import Placeholder from '../../common/components/Placeholder';
+import Tooltip from '../../common/components/Tooltip';
 
 export interface IAccessTokensListAttrs extends ComponentAttrs {
   tokens: AccessToken[];
@@ -28,7 +28,7 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
   oninit(vnode: Mithril.Vnode<CustomAttrs, this>) {
     super.oninit(vnode);
 
-    // Sort by current first.
+    // Show current token first.
     this.tokens = this.attrs.tokens.sort((a, b) => (b.isCurrent() ? 1 : -1));
   }
 
@@ -143,12 +143,21 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
       );
     }
 
-    items.add(
-      'revoke',
+    let revokeButton = (
       <Button className="Button Button--danger" disabled={token.isCurrent()} loading={!!this.loading[token.id()!]} onclick={() => this.revoke(token)}>
         {app.translator.trans(`core.forum.security.${deleteKey}`)}
       </Button>
     );
+
+    if (token.isCurrent()) {
+      revokeButton = (
+        <Tooltip text={app.translator.trans('core.forum.security.cannot_terminate_current_session')}>
+          <div tabindex="0">{revokeButton}</div>
+        </Tooltip>
+      );
+    }
+
+    items.add('revoke', revokeButton);
 
     return items;
   }
@@ -167,7 +176,7 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
     });
   }
 
-  tokenValueDisplay(token: AccessToken) {
+  tokenValueDisplay(token: AccessToken): Mithril.Children {
     return <code className="AccessTokensList-item-token">{this.showingTokens[token.id()!] ? token.token() : Array(12).fill('*').join('')}</code>;
   }
 }

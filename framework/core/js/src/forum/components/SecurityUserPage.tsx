@@ -10,12 +10,13 @@ import AccessToken from '../../common/models/AccessToken';
 import LoadingIndicator from '../../common/components/LoadingIndicator';
 import Button from '../../common/components/Button';
 import NewAccessTokenModal from './NewAccessTokenModal';
+import camelCaseToSnakeCase from '../../common/utils/camelCaseToSnakeCase';
 
 /**
- * The `SecurityPage` component displays the user's security control panel, in
+ * The `SecurityUserPage` component displays the user's security control panel, in
  * the context of their user profile.
  */
-export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPageAttrs> extends UserPage<CustomAttrs> {
+export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUserPageAttrs> extends UserPage<CustomAttrs> {
   protected tokens: AccessToken[] | null = null;
   protected loading: null | 'terminate_sessions' | 'global_logout' = null;
 
@@ -37,7 +38,7 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
 
   content() {
     return (
-      <div className="SecurityPage">
+      <div className="SecurityUserPage">
         <ul>{listItems(this.settingsItems().toArray())}</ul>
       </div>
     );
@@ -51,8 +52,7 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
 
     ['developerTokens', 'sessions'].forEach((section) => {
       const sectionName = `${section}Items` as 'developerTokensItems' | 'sessionsItems';
-      // Camel-case to snake-case
-      const sectionLocale = section.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+      const sectionLocale = camelCaseToSnakeCase(section);
 
       items.add(
         section,
@@ -196,8 +196,12 @@ export default class SecurityPage<CustomAttrs extends IUserPageAttrs = IUserPage
       })
       .then(() => {
         this.loading = null;
+
+        // Count terminated sessions first.
+        const count = this.tokens!.filter((token) => token.isSessionToken() && !token.isCurrent());
+
         this.tokens = this.tokens!.filter((token) => !token.isSessionToken() || token.isCurrent());
-        app.alerts.show({ type: 'success' }, app.translator.trans('core.forum.security.session_terminated', { count: 2 }));
+        app.alerts.show({ type: 'success' }, app.translator.trans('core.forum.security.session_terminated', { count }));
         m.redraw();
       });
   }

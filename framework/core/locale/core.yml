@@ -449,6 +449,7 @@ core:
     # These translations are used in the Security page.
     security:
       browser_on_operating_system: "{browser} on {os}"
+      cannot_terminate_current_session: Cannot terminate the current active session. Log out instead.
       created: Created
       current_active_session: Current Active Session
       developer_tokens_heading: Developer Tokens
@@ -468,8 +469,8 @@ core:
       revoke_access_token: Revoke
       revoke_access_token_confirmation: => core.ref.generic_confirmation_message
       sessions_heading: Active Sessions
-      session_terminated: "{count, plural, one {Session terminated} other {Sessions terminated}}."
-      show_access_token: View
+      session_terminated: "{count, plural, one {Session terminated} other {# Sessions terminated}}."
+      show_access_token: View Token
       terminate_all_other_sessions: Terminate all other sessions
       terminate_all_other_sessions_confirmation: => core.ref.generic_confirmation_message
       terminate_session: Terminate
