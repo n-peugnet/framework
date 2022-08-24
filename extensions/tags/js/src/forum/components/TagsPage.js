@@ -8,7 +8,7 @@ import humanTime from 'flarum/common/helpers/humanTime';
 import tagIcon from '../../common/helpers/tagIcon';
 import tagLabel from '../../common/helpers/tagLabel';
 import sortTags from '../../common/utils/sortTags';
-import classList from '@flarum/core/src/common/utils/classList';
+import classList from 'flarum/common/utils/classList';
 
 export default class TagsPage extends Page {
   oninit(vnode) {
