@@ -18,7 +18,8 @@ import camelCaseToSnakeCase from '../../common/utils/camelCaseToSnakeCase';
  */
 export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUserPageAttrs> extends UserPage<CustomAttrs> {
   protected tokens: AccessToken[] | null = null;
-  protected loading: null | 'terminate_sessions' | 'global_logout' = null;
+  protected loadingTerminateSessions = false;
+  protected loadingGlobalLogout = false;
 
   oninit(vnode: Mithril.Vnode<CustomAttrs, this>) {
     super.oninit(vnode);
@@ -71,8 +72,8 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
             className="Button"
             icon="fas fa-sign-out-alt"
             onclick={this.globalLogout.bind(this)}
-            loading={this.loading === 'global_logout'}
-            disabled={this.loading === 'terminate_sessions'}
+            loading={this.loadingGlobalLogout}
+            disabled={this.loadingTerminateSessions}
           >
             {app.translator.trans('core.forum.security.global_logout.log_out_button')}
           </Button>
@@ -162,8 +163,8 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
         <Button
           className="Button"
           onclick={this.terminateAllOtherSessions.bind(this)}
-          loading={this.loading === 'terminate_sessions'}
-          disabled={this.loading === 'global_logout' || !this.tokens?.some((token) => token.isSessionToken() && !token.isCurrent())}
+          loading={this.loadingTerminateSessions}
+          disabled={this.loadingGlobalLogout || !this.tokens?.some((token) => token.isSessionToken() && !token.isCurrent())}
         >
           {app.translator.trans('core.forum.security.terminate_all_other_sessions')}
         </Button>
@@ -187,7 +188,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
   terminateAllOtherSessions() {
     if (!confirm(extractText(app.translator.trans('core.forum.security.terminate_all_other_sessions_confirmation')))) return;
 
-    this.loading = 'terminate_sessions';
+    this.loadingTerminateSessions = true;
 
     return app
       .request({
@@ -195,25 +196,30 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
         url: app.forum.attribute('apiUrl') + '/sessions',
       })
       .then(() => {
-        this.loading = null;
-
         // Count terminated sessions first.
         const count = this.tokens!.filter((token) => token.isSessionToken() && !token.isCurrent());
 
         this.tokens = this.tokens!.filter((token) => !token.isSessionToken() || token.isCurrent());
         app.alerts.show({ type: 'success' }, app.translator.trans('core.forum.security.session_terminated', { count }));
+      })
+      .finally(() => {
+        this.loadingTerminateSessions = false;
         m.redraw();
       });
   }
 
   globalLogout() {
-    this.loading = 'global_logout';
+    this.loadingGlobalLogout = true;
 
     return app
       .request({
         method: 'POST',
         url: app.forum.attribute<string>('baseUrl') + '/global-logout',
       })
-      .then(() => window.location.reload());
+      .then(() => window.location.reload())
+      .finally(() => {
+        this.loadingGlobalLogout = false;
+        m.redraw();
+      });
   }
 }
