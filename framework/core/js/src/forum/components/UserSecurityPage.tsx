@@ -72,8 +72,8 @@ export default class UserSecurityPage<CustomAttrs extends IUserPageAttrs = IUser
             className="Button"
             icon="fas fa-sign-out-alt"
             onclick={this.globalLogout.bind(this)}
-            loading={this.loadingGlobalLogout}
-            disabled={this.loadingTerminateSessions}
+            loading={this.state.loadingGlobalLogout}
+            disabled={this.state.loadingTerminateSessions}
           >
             {app.translator.trans('core.forum.security.global_logout.log_out_button')}
           </Button>
@@ -159,7 +159,12 @@ export default class UserSecurityPage<CustomAttrs extends IUserPageAttrs = IUser
       const isDisabled = !this.state.hasOtherActiveSessions();
 
       let terminateAllOthersButton = (
-        <Button className="Button" onclick={this.terminateAllOtherSessions.bind(this)} loading={this.state.loadingTerminateSessions} disabled={this.state.loadingGlobalLogout || isDisabled}>
+        <Button
+          className="Button"
+          onclick={this.terminateAllOtherSessions.bind(this)}
+          loading={this.state.loadingTerminateSessions}
+          disabled={this.state.loadingGlobalLogout || isDisabled}
+        >
           {app.translator.trans('core.forum.security.terminate_all_other_sessions')}
         </Button>
       );
@@ -192,8 +197,7 @@ export default class UserSecurityPage<CustomAttrs extends IUserPageAttrs = IUser
   terminateAllOtherSessions() {
     if (!confirm(extractText(app.translator.trans('core.forum.security.terminate_all_other_sessions_confirmation')))) return;
 
-    this.state.setLoading(true);
-    this.loadingTerminateSessions = true;
+    this.state.loadingTerminateSessions = true;
 
     return app
       .request({
@@ -201,8 +205,6 @@ export default class UserSecurityPage<CustomAttrs extends IUserPageAttrs = IUser
         url: app.forum.attribute('apiUrl') + '/sessions',
       })
       .then(() => {
-        this.state.setLoading(false);
-
         // Count terminated sessions first.
         const count = this.state.getOtherSessionTokens().length;
 
