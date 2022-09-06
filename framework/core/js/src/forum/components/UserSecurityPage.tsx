@@ -3,23 +3,23 @@ import UserPage, { IUserPageAttrs } from './UserPage';
 import ItemList from '../../common/utils/ItemList';
 import FieldSet from '../../common/components/FieldSet';
 import listItems from '../../common/helpers/listItems';
-import type Mithril from 'mithril';
 import extractText from '../../common/utils/extractText';
 import AccessTokensList from './AccessTokensList';
-import AccessToken from '../../common/models/AccessToken';
 import LoadingIndicator from '../../common/components/LoadingIndicator';
 import Button from '../../common/components/Button';
 import NewAccessTokenModal from './NewAccessTokenModal';
 import camelCaseToSnakeCase from '../../common/utils/camelCaseToSnakeCase';
+import type AccessToken from '../../common/models/AccessToken';
+import type Mithril from 'mithril';
+import Tooltip from '../../common/components/Tooltip';
+import UserSecurityPageState from '../states/UserSecurityPageState';
 
 /**
- * The `SecurityUserPage` component displays the user's security control panel, in
+ * The `UserSecurityPage` component displays the user's security control panel, in
  * the context of their user profile.
  */
-export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUserPageAttrs> extends UserPage<CustomAttrs> {
-  protected tokens: AccessToken[] | null = null;
-  protected loadingTerminateSessions = false;
-  protected loadingGlobalLogout = false;
+export default class UserSecurityPage<CustomAttrs extends IUserPageAttrs = IUserPageAttrs> extends UserPage<CustomAttrs, UserSecurityPageState> {
+  state = new UserSecurityPageState();
 
   oninit(vnode: Mithril.Vnode<CustomAttrs, this>) {
     super.oninit(vnode);
@@ -39,7 +39,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
 
   content() {
     return (
-      <div className="SecurityUserPage">
+      <div className="UserSecurityPage">
         <ul>{listItems(this.settingsItems().toArray())}</ul>
       </div>
     );
@@ -57,7 +57,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
 
       items.add(
         section,
-        <FieldSet className={`SecurityPage-${section}`} label={app.translator.trans(`core.forum.security.${sectionLocale}_heading`)}>
+        <FieldSet className={`UserSecurityPage-${section}`} label={app.translator.trans(`core.forum.security.${sectionLocale}_heading`)}>
           {this[sectionName]().toArray()}
         </FieldSet>
       );
@@ -66,7 +66,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
     if (this.user!.id() === app.session.user!.id()) {
       items.add(
         'globalLogout',
-        <FieldSet className="SecurityPage-globalLogout" label={app.translator.trans('core.forum.security.global_logout.heading')}>
+        <FieldSet className="UserSecurityPage-globalLogout" label={app.translator.trans('core.forum.security.global_logout.heading')}>
           <span className="helpText">{app.translator.trans('core.forum.security.global_logout.help_text')}</span>
           <Button
             className="Button"
@@ -92,17 +92,16 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
 
     items.add(
       'accessTokenList',
-      this.tokens === null ? (
+      !this.state.hasLoadedTokens() ? (
         <LoadingIndicator />
       ) : (
         <AccessTokensList
-          key={this.tokens.length}
-          type="token"
+          type="developer_token"
           ondelete={(token: AccessToken) => {
-            this.tokens = this.tokens!.filter((t) => t !== token);
+            this.state.removeToken(token);
             m.redraw();
           }}
-          tokens={this.tokens.filter((token) => !token.isSessionToken())}
+          tokens={this.state.getDeveloperTokens()}
           icon="fas fa-key"
           hideTokens={false}
         />
@@ -118,7 +117,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
           onclick={() =>
             app.modal.show(NewAccessTokenModal, {
               onsuccess: (token: AccessToken) => {
-                this.tokens?.push(token);
+                this.state.pushToken(token);
                 m.redraw();
               },
             })
@@ -140,17 +139,16 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
 
     items.add(
       'sessionsList',
-      this.tokens === null ? (
+      !this.state.hasLoadedTokens() ? (
         <LoadingIndicator />
       ) : (
         <AccessTokensList
-          key={this.tokens.length}
           type="session"
           ondelete={(token: AccessToken) => {
-            this.tokens = this.tokens!.filter((t) => t !== token);
+            this.state.removeToken(token);
             m.redraw();
           }}
-          tokens={this.tokens.filter((token) => token.isSessionToken())}
+          tokens={this.state.getSessionTokens()}
           icon="fas fa-laptop"
           hideTokens={true}
         />
@@ -158,17 +156,23 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
     );
 
     if (this.user!.id() === app.session.user!.id()) {
-      items.add(
-        'terminateAllOtherSessions',
-        <Button
-          className="Button"
-          onclick={this.terminateAllOtherSessions.bind(this)}
-          loading={this.loadingTerminateSessions}
-          disabled={this.loadingGlobalLogout || !this.tokens?.some((token) => token.isSessionToken() && !token.isCurrent())}
-        >
+      const isDisabled = !this.state.hasOtherActiveSessions();
+
+      let terminateAllOthersButton = (
+        <Button className="Button" onclick={this.terminateAllOtherSessions.bind(this)} loading={this.state.loadingTerminateSessions} disabled={this.state.loadingGlobalLogout || isDisabled}>
           {app.translator.trans('core.forum.security.terminate_all_other_sessions')}
         </Button>
       );
+
+      if (isDisabled) {
+        terminateAllOthersButton = (
+          <Tooltip text={app.translator.trans('core.forum.security.cannot_terminate_current_session')}>
+            <span tabindex="0">{terminateAllOthersButton}</span>
+          </Tooltip>
+        );
+      }
+
+      items.add('terminateAllOtherSessions', terminateAllOthersButton);
     }
 
     return items;
@@ -180,7 +184,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
         filter: { user: this.user!.id()! },
       })
       .then((tokens) => {
-        this.tokens = tokens;
+        this.state.setTokens(tokens);
         m.redraw();
       });
   }
@@ -188,6 +192,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
   terminateAllOtherSessions() {
     if (!confirm(extractText(app.translator.trans('core.forum.security.terminate_all_other_sessions_confirmation')))) return;
 
+    this.state.setLoading(true);
     this.loadingTerminateSessions = true;
 
     return app
@@ -196,20 +201,22 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
         url: app.forum.attribute('apiUrl') + '/sessions',
       })
       .then(() => {
-        // Count terminated sessions first.
-        const count = this.tokens!.filter((token) => token.isSessionToken() && !token.isCurrent());
+        this.state.setLoading(false);
 
-        this.tokens = this.tokens!.filter((token) => !token.isSessionToken() || token.isCurrent());
+        // Count terminated sessions first.
+        const count = this.state.getOtherSessionTokens().length;
+
+        this.state.removeOtherSessionTokens();
         app.alerts.show({ type: 'success' }, app.translator.trans('core.forum.security.session_terminated', { count }));
       })
       .finally(() => {
-        this.loadingTerminateSessions = false;
+        this.state.loadingTerminateSessions = false;
         m.redraw();
       });
   }
 
   globalLogout() {
-    this.loadingGlobalLogout = true;
+    this.state.loadingGlobalLogout = true;
 
     return app
       .request({
@@ -218,7 +225,7 @@ export default class SecurityUserPage<CustomAttrs extends IUserPageAttrs = IUser
       })
       .then(() => window.location.reload())
       .finally(() => {
-        this.loadingGlobalLogout = false;
+        this.state.loadingGlobalLogout = false;
         m.redraw();
       });
   }

@@ -1,7 +1,5 @@
-import Component, { ComponentAttrs } from '../../common/Component';
-import type Mithril from 'mithril';
-import type AccessToken from '../../common/models/AccessToken';
 import app from '../app';
+import Component, { ComponentAttrs } from '../../common/Component';
 import icon from '../../common/helpers/icon';
 import uaParser from 'ua-parser-js';
 import Button from '../../common/components/Button';
@@ -11,10 +9,12 @@ import DataSegment from '../../common/components/DataSegment';
 import extractText from '../../common/utils/extractText';
 import classList from '../../common/utils/classList';
 import Tooltip from '../../common/components/Tooltip';
+import type Mithril from 'mithril';
+import type AccessToken from '../../common/models/AccessToken';
 
 export interface IAccessTokensListAttrs extends ComponentAttrs {
   tokens: AccessToken[];
-  type: 'session' | 'token';
+  type: 'session' | 'developer_token';
   hideTokens?: boolean;
   icon?: string;
   ondelete?: (token: AccessToken) => void;
@@ -22,21 +22,13 @@ export interface IAccessTokensListAttrs extends ComponentAttrs {
 
 export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs = IAccessTokensListAttrs> extends Component<CustomAttrs> {
   protected loading: Record<string, boolean | undefined> = {};
-  protected tokens!: AccessToken[];
   protected showingTokens: Record<string, boolean | undefined> = {};
-
-  oninit(vnode: Mithril.Vnode<CustomAttrs, this>) {
-    super.oninit(vnode);
-
-    // Show current token first.
-    this.tokens = this.attrs.tokens.sort((a, b) => (b.isCurrent() ? 1 : -1));
-  }
 
   view(vnode: Mithril.Vnode<CustomAttrs, this>): Mithril.Children {
     return (
       <div className="AccessTokensList">
-        {this.tokens.length ? (
-          this.tokens.map(this.tokenView.bind(this))
+        {this.attrs.tokens.length ? (
+          this.attrs.tokens.map(this.tokenView.bind(this))
         ) : (
           <div className="AccessTokensList--empty">{app.translator.trans('core.forum.security.empty_text')}</div>
         )}
@@ -50,12 +42,23 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
         className={classList('AccessTokensList-item', {
           'AccessTokensList-item--active': token.isCurrent(),
         })}
+        key={token.id()!}
       >
-        <div className="AccessTokensList-item-icon">{icon(this.attrs.icon || 'fas fa-key')}</div>
-        <div className="AccessTokensList-item-info">{this.tokenInfoItems(token).toArray()}</div>
-        <div className="AccessTokensList-item-actions">{this.tokenActionItems(token).toArray()}</div>
+        {this.tokenViewItems(token).toArray()}
       </div>
     );
+  }
+
+  tokenViewItems(token: AccessToken): ItemList<Mithril.Children> {
+    const items = new ItemList<Mithril.Children>();
+
+    items.add('icon', <div className="AccessTokensList-item-icon">{icon(this.attrs.icon || 'fas fa-key')}</div>, 50);
+
+    items.add('info', <div className="AccessTokensList-item-info">{this.tokenInfoItems(token).toArray()}</div>, 40);
+
+    items.add('actions', <div className="AccessTokensList-item-actions">{this.tokenActionItems(token).toArray()}</div>, 30);
+
+    return items;
   }
 
   tokenInfoItems(token: AccessToken) {
@@ -101,13 +104,20 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
         <DataSegment
           label={app.translator.trans('core.forum.security.last_activity')}
           value={
-            token.lastActivityAt()
-              ? [
-                  humanTime(token.lastActivityAt()),
-                  token.lastIpAddress() && [' — ', token.lastIpAddress()],
-                  this.attrs.type === 'token' && token.lastUserAgent() && [' — ', <span className="AccessTokensList-item-title-sub">{device}</span>],
-                ]
-              : app.translator.trans('core.forum.security.never')
+            token.lastActivityAt() ? (
+              <>
+                {humanTime(token.lastActivityAt())}
+                {token.lastIpAddress() && ` — ${token.lastIpAddress()}`}
+                {this.attrs.type === 'developer_token' && token.lastUserAgent() && (
+                  <>
+                    {' '}
+                    — <span className="AccessTokensList-item-title-sub">{device}</span>
+                  </>
+                )}
+              </>
+            ) : (
+              app.translator.trans('core.forum.security.never')
+            )
           }
         />
       </div>
@@ -121,10 +131,10 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
 
     const deleteKey = {
       session: 'terminate_session',
-      token: 'revoke_access_token',
+      developer_token: 'revoke_access_token',
     }[this.attrs.type];
 
-    if (this.attrs.type === 'token') {
+    if (this.attrs.type === 'developer_token') {
       const isHidden = !this.showingTokens[token.id()!];
       const displayKey = isHidden ? 'show_access_token' : 'hide_access_token';
 
@@ -162,18 +172,20 @@ export default class AccessTokensList<CustomAttrs extends IAccessTokensListAttrs
     return items;
   }
 
-  revoke(token: AccessToken) {
+  async revoke(token: AccessToken) {
     if (!confirm(extractText(app.translator.trans('core.forum.security.revoke_access_token_confirmation')))) return;
 
     this.loading[token.id()!] = true;
 
-    return token.delete().then(() => {
-      this.loading[token.id()!] = false;
-      this.attrs.ondelete && this.attrs.ondelete(token);
-      const key = this.attrs.type === 'session' ? 'session_terminated' : 'token_revoked';
-      app.alerts.show({ type: 'success' }, app.translator.trans(`core.forum.security.${key}`, { count: 1 }));
-      m.redraw();
-    });
+    await token.delete();
+
+    this.loading[token.id()!] = false;
+    this.attrs.ondelete?.(token);
+
+    const key = this.attrs.type === 'session' ? 'session_terminated' : 'token_revoked';
+
+    app.alerts.show({ type: 'success' }, app.translator.trans(`core.forum.security.${key}`, { count: 1 }));
+    m.redraw();
   }
 
   tokenValueDisplay(token: AccessToken): Mithril.Children {
