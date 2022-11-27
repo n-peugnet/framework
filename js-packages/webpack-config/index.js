@@ -85,7 +85,6 @@ module.exports = function (options = {}) {
               // See: https://babeljs.io/docs/en/assumptions
               constantSuper: true,
               ignoreFunctionLength: true,
-              noClassCalls: true,
               noDocumentAll: true,
               noNewArrows: true,
               privateFieldsAsProperties: true,
