@@ -38,7 +38,7 @@ const plugins = [];
  * is required at build-time from an extension/core's scope) are redirected to the
  * copy of `@babel/runtime` which is a dependency of this package.
  *
- * This removes the need for hoisting, and allows for Plyug'n'Play compatibility.
+ * This removes the need for hoisting, and allows for Plug'n'Play compatibility.
  *
  * Thanks goes to Yarn's lead maintainer @arcanis for helping me get to this
  * solution.
@@ -75,21 +75,39 @@ module.exports = function (options = {}) {
           test: /\.(j|t)sx?$/,
           loader: require.resolve('babel-loader'),
           options: {
+            assumptions: {
+              // Defines assumptions Babel can make about our
+              // code to better optimise it.
+              //
+              // These are rarely used features that are generally
+              // considered very bad practice anyway.
+              //
+              // See: https://babeljs.io/docs/en/assumptions
+              constantSuper: true,
+              ignoreFunctionLength: true,
+              noClassCalls: true,
+              noDocumentAll: true,
+              noNewArrows: true,
+              privateFieldsAsProperties: true,
+            },
+            targets: {
+              // `not android > 0` means the build-in Android browser used up to Android 4.4 KitKat.
+              browsers: '>0.2%, not dead, not android > 0, not operamini all',
+            },
             presets: [
               require.resolve('@babel/preset-react'),
               require.resolve('@babel/preset-typescript'),
               [
                 require.resolve('@babel/preset-env'),
                 {
-                  modules: false,
-                  loose: true,
+                  modules: 'auto',
                 },
               ],
             ],
             plugins: [
               [require.resolve('@babel/plugin-transform-runtime'), { useESModules: true }],
-              [require.resolve('@babel/plugin-proposal-class-properties'), { loose: true }],
-              [require.resolve('@babel/plugin-proposal-private-methods'), { loose: true }],
+              [require.resolve('@babel/plugin-proposal-class-properties')],
+              [require.resolve('@babel/plugin-proposal-private-methods')],
               [
                 require.resolve('@babel/plugin-transform-react-jsx'),
                 {
